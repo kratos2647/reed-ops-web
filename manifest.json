@@ -1,0 +1,27 @@
+{
+  "id": "/mm-virsa-ops/",
+  "name": "REED Operations Ledger",
+  "short_name": "REED",
+  "description": "E-Commerce Dispatch, Live Trax & Leopards Tracking, 5-Day/10-Day SLA Escalations, and Barcode Return Scanner.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#FAF8F5",
+  "theme_color": "#1F1C18",
+  "categories": ["business", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "assets/virsa-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/virsa-icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

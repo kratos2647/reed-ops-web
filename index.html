@@ -1,0 +1,1430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>REED — Operations Portal</title>
+  <meta name="description" content="REED E-Commerce Dispatch, Load/Receiving Sheets, Live Tracking (Trax Sonic & Leopards), 5d/10d SLA Alerts, and Return Scanner." />
+  <meta name="theme-color" content="#1F1C18" />
+  <meta name="referrer" content="no-referrer" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https:; object-src 'none'; base-uri 'self'; form-action 'self';" />
+  <link rel="icon" type="image/png" href="assets/virsa-icon.png" />
+  <link rel="apple-touch-icon" href="assets/virsa-icon.png" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="vendor/html5-qrcode.min.js" defer></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" defer></script>
+</head>
+<body>
+  <div id="refresh-progress-bar" class="refresh-progress-bar" aria-hidden="true"></div>
+  <div id="screen-flash" class="screen-flash" aria-hidden="true"></div>
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- Security PIN & Staff Login Lock Screen -->
+  <div id="lock-overlay" class="lock-overlay" role="dialog" aria-modal="true" aria-label="VIRSA Lock Screen">
+    <div class="lock-card">
+      <div class="lock-logo" style="width:68px; height:68px; border-radius:50%; overflow:hidden; margin:0 auto 14px; padding:0; background:transparent; box-shadow:0 6px 20px rgba(28,25,23,0.16);"><img src="assets/virsa-icon.png" alt="REED" style="width:100%; height:100%; object-fit:cover;" /></div>
+      <h2 id="lock-title" style="margin:0 0 4px; font-size:18px; color:var(--text-primary);">REED Ops Login</h2>
+      <p id="lock-subtitle" style="margin:0 0 14px; font-size:12.5px; color:var(--text-muted);">Sign in with your Staff ID &amp; Password or Admin PIN.</p>
+      <form id="lock-unlock-form" autocomplete="off">
+        <div id="lock-staff-fields" style="display:none; flex-direction:column; gap:8px; margin-bottom:6px; text-align:left;">
+          <input type="text" id="inp-login-id" class="form-input mono" style="height:42px;" placeholder="Staff ID (e.g. admin, ali01)" autocomplete="username" />
+          <input type="password" id="inp-login-pass" class="form-input" style="height:42px;" placeholder="Password" autocomplete="current-password" />
+        </div>
+        <div id="lock-pin-fields">
+          <input type="password" inputmode="numeric" pattern="[0-9]*" id="inp-lock-pin" class="form-input mono" style="height:46px; text-align:center; font-size:20px; letter-spacing:0.3em;" placeholder="••••" maxlength="8" />
+        </div>
+        <div id="lock-error-msg" style="color:var(--red-text); font-size:12px; font-weight:600; min-height:18px; margin-top:6px;"></div>
+        <button type="submit" id="btn-lock-submit" class="btn btn-primary btn-lg" style="width:100%; margin-top:6px;">Unlock</button>
+        <div id="lock-default-hint" style="display:none; margin-top:10px; font-size:11.5px; color:var(--text-muted); background:var(--surface-muted); padding:6px 10px; border-radius:8px;">
+          Default Admin: ID <code class="mono">admin</code> • Pass <code class="mono">admin123</code>
+        </div>
+        <button type="button" id="btn-toggle-auth-mode" class="btn btn-sm" style="display:none; width:100%; margin-top:8px;">Use Admin PIN instead</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       Warm Alabaster Left Sidebar (Keitoto Style)
+       ====================================================================== -->
+  <aside class="sidebar" aria-label="Navigation">
+    <div class="sidebar-profile">
+      <div class="virsa-avatar"><img src="assets/virsa-icon.png" alt="REED" /></div>
+      <div style="min-width:0;">
+        <div class="profile-name">REED</div>
+        <div class="profile-sub" id="sidebar-operator-name">REED Station</div>
+      </div>
+    </div>
+
+    <div class="nav-group-label">Menu</div>
+
+    <button type="button" class="nav-item active" data-nav="dashboard">
+      <span class="nav-item-left">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1.5"/><rect width="7" height="7" x="14" y="3" rx="1.5"/><rect width="7" height="7" x="14" y="14" rx="1.5"/><rect width="7" height="7" x="3" y="14" rx="1.5"/></svg>
+        <span>Dashboard</span>
+      </span>
+    </button>
+
+    <button type="button" class="nav-item" data-nav="overview">
+      <span class="nav-item-left">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        <span>Orders</span>
+      </span>
+    </button>
+
+    <button type="button" class="nav-item" data-nav="upload">
+      <span class="nav-item-left">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span>Upload Sheet</span>
+      </span>
+    </button>
+
+    <button type="button" class="nav-item" data-nav="returns">
+      <span class="nav-item-left">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+        <span>Scanner</span>
+      </span>
+      <span class="nav-count" id="nav-count-returns">0</span>
+    </button>
+
+    <button type="button" class="nav-item" data-nav="alerts">
+      <span class="nav-item-left">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        <span>Alerts</span>
+      </span>
+      <span class="nav-count danger" id="nav-count-alerts">0</span>
+    </button>
+
+    <div class="nav-group-label" style="margin-top:6px;">Tools</div>
+
+    <button type="button" class="nav-item" data-nav="reports">
+      <span class="nav-item-left">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span>Reports</span>
+      </span>
+    </button>
+
+    <button type="button" class="nav-item" data-nav="settings">
+      <span class="nav-item-left">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Settings</span>
+      </span>
+    </button>
+
+    <div class="sidebar-footer">
+      <div class="station-status">
+        <span style="display:inline-flex; align-items:center; gap:6px; font-weight:500;" id="sidebar-sync-status">
+          <span class="live-dot"></span>Live Sync
+        </span>
+        <span class="mono" style="font-size:10.5px; color:var(--text-muted);" id="sidebar-api-meta">Trax • LCS</span>
+      </div>
+      <button type="button" id="btn-sidebar-logout" class="sidebar-logout-btn" style="display:none;">Switch Staff / Lock</button>
+    </div>
+  </aside>
+
+  <!-- ======================================================================
+       Clean Breadcrumb Topbar (60px) — Zero Sync Timer
+       ====================================================================== -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="mobile-brand">
+        <span class="mobile-wordmark"><span class="wordmark-dot"></span>REED</span>
+      </div>
+
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span>Menu</span>
+        <span style="color:var(--border-strong);">›</span>
+        <strong id="breadcrumb-current">Dashboard</strong>
+      </nav>
+    </div>
+
+    <div class="topbar-right">
+      <button type="button" id="btn-topbar-refresh" class="icon-btn" title="Refresh">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+      </button>
+
+      <button type="button" id="btn-topbar-sync" class="sync-chip" title="Sync Cloud &amp; Live Couriers">
+        <svg id="topbar-sync-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--green-text)" stroke-width="2.2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+        <span id="topbar-sync-label">Sync</span>
+      </button>
+
+      <button type="button" id="btn-lock-app" class="icon-btn" style="display:none;" title="Lock Portal">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </button>
+
+      <div style="position:relative;">
+        <button type="button" id="btn-notif-bell" class="icon-btn" aria-label="Alerts">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+          <span id="bell-badge" class="bell-count hidden">0</span>
+        </button>
+
+        <div id="notif-dropdown" class="notif-dropdown" role="dialog" aria-label="SLA Alerts">
+          <div class="notif-head">
+            <strong style="font-size:13px;">SLA Escalations</strong>
+            <button type="button" id="btn-close-notif" class="btn btn-sm">Close</button>
+          </div>
+          <div class="notif-body">
+            <div class="notif-grid">
+              <div class="notif-box amber">
+                <div class="mono" style="font-size:20px; font-weight:700;" id="notif-d5">0</div>
+                <div style="font-size:11px; font-weight:600;">5-Day Warnings</div>
+              </div>
+              <div class="notif-box red">
+                <div class="mono" style="font-size:20px; font-weight:700;" id="notif-d10">0</div>
+                <div style="font-size:11px; font-weight:600;">10-Day Critical</div>
+              </div>
+            </div>
+            <div id="notif-list" style="display:flex; flex-direction:column; gap:6px;"></div>
+          </div>
+          <div class="notif-foot">
+            <div class="btn-group">
+              <button type="button" class="btn btn-sm btn-danger" data-export-complaint="Leopards">Leopards CSV</button>
+              <button type="button" class="btn btn-sm btn-danger" data-export-complaint="Trax">Trax CSV</button>
+              <button type="button" id="btn-goto-alerts-bell" class="btn btn-sm btn-primary" style="margin-left:auto;">Open Alerts</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button type="button" class="mobile-avatar-sq" data-nav="settings" aria-label="Settings">
+        <img src="assets/virsa-icon.png" alt="VIRSA" />
+      </button>
+    </div>
+  </header>
+
+  <!-- ======================================================================
+       Main Spacious Workbench
+       ====================================================================== -->
+  <main class="main-content">
+    <div id="demo-banner" class="alert-strip info" style="display:none;">
+      <span><strong>Preview Data Loaded</strong> — Upload your Trax / Leopards sheet or click Clear to start live.</span>
+      <div class="btn-group">
+        <button type="button" id="btn-dismiss-demo" class="btn btn-sm">Keep</button>
+        <button type="button" id="btn-clear-demo" class="btn btn-sm btn-danger">Clear Sample</button>
+      </div>
+    </div>
+
+    <!-- ====================================================================
+         VIEW 0: DASHBOARD (DESKTOP & MOBILE LOGISTICS ANALYTICS OVERVIEW)
+         ==================================================================== -->
+    <section id="view-dashboard" class="view-section active">
+      <div class="dash-head">
+        <div>
+          <h1 class="dash-greeting">Hello, <span id="dash-hello-name">VIRSA</span></h1>
+          <p class="page-sub">Live dispatch, load sheets &amp; return summary</p>
+        </div>
+        <div class="btn-group">
+          <button type="button" id="btn-dash-verify-courier" class="btn" title="Check Courier API for scanned parcels &amp; detect handover/courier issues">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <span id="lbl-dash-verify-courier">Verify Courier Scans</span>
+          </button>
+          <button type="button" class="btn" data-nav-jump="upload">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <span>Upload Sheet</span>
+          </button>
+          <button type="button" id="btn-dash-new-order" class="btn btn-primary">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span>New Order</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Dashboard View Mode (Dispatch & Returns vs Overall) + Date Range Filter -->
+      <div class="dash-filter-bar">
+        <div class="mode-tabs" id="dash-mode-tabs" role="tablist">
+          <button type="button" class="mode-tab active" data-dash-mode="dispatch_returns">Dispatch &amp; Returns</button>
+          <button type="button" class="mode-tab" data-dash-mode="overall">Overall</button>
+        </div>
+        <div class="dash-date-controls">
+          <div class="btn-group dash-date-presets">
+            <button type="button" class="btn btn-sm" data-date-preset="all">All</button>
+            <button type="button" class="btn btn-sm" data-date-preset="today">Today</button>
+            <button type="button" class="btn btn-sm" data-date-preset="7d">7D</button>
+            <button type="button" class="btn btn-sm" data-date-preset="30d">30D</button>
+          </div>
+          <div class="dash-date-inputs">
+            <input type="date" id="dash-date-from" class="form-input dash-date-inp" title="From Date" />
+            <span class="dash-date-sep">to</span>
+            <input type="date" id="dash-date-to" class="form-input dash-date-inp" title="To Date" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 Clean CHEMXE-Style KPI Cards -->
+      <div class="dash-kpi-grid">
+        <button type="button" class="dash-kpi-card" id="dkpi-card-1" data-jump-status="all">
+          <div class="kpi-label-row">
+            <span class="kpi-label" id="dkpi-lbl-1">Dispatched</span>
+            <span class="dash-pill mint" id="dkpi-pill-total">Live</span>
+          </div>
+          <div class="dash-kpi-num" id="dkpi-total">0</div>
+          <div class="mono" id="dkpi-cod-1" style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">Rs. 0</div>
+        </button>
+
+        <button type="button" class="dash-kpi-card" id="dkpi-card-2" data-jump-status="normal">
+          <div class="kpi-label-row">
+            <span class="kpi-label" id="dkpi-lbl-2">In transit</span>
+            <span class="dash-pill sand" id="dkpi-pill-transit">0%</span>
+          </div>
+          <div class="dash-kpi-num" id="dkpi-transit">0</div>
+          <div class="mono" id="dkpi-cod-2" style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">Rs. 0</div>
+        </button>
+
+        <button type="button" class="dash-kpi-card" id="dkpi-card-3" data-jump-status="returned">
+          <div class="kpi-label-row">
+            <span class="kpi-label" id="dkpi-lbl-3">Returns Verified</span>
+            <span class="dash-pill amber" id="dkpi-pill-booked">Ret</span>
+          </div>
+          <div class="dash-kpi-num" id="dkpi-booked">0</div>
+          <div class="mono" id="dkpi-cod-3" style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">Rs. 0</div>
+        </button>
+
+        <button type="button" class="dash-kpi-card" id="dkpi-card-4" data-jump-status="rto">
+          <div class="kpi-label-row">
+            <span class="kpi-label" id="dkpi-lbl-4">RTO / Return Transit</span>
+            <span class="dash-pill mint" id="dkpi-pill-delivered">0%</span>
+          </div>
+          <div class="dash-kpi-num" id="dkpi-delivered">0</div>
+          <div class="mono" id="dkpi-cod-4" style="font-size:11.5px; color:var(--text-muted); margin-top:4px;">Rs. 0</div>
+        </button>
+      </div>
+
+      <!-- Courier Scan Verification & Issue Audit Box (Shown after Verify Courier Scans) -->
+      <div id="dash-courier-audit-box" class="panel" style="display:none; margin-bottom:16px;">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">Courier Scan Verification &amp; Issue Check</h2>
+            <p class="panel-sub" id="dash-audit-summary" style="margin:2px 0 0;">Checked active parcels against Courier API</p>
+          </div>
+          <button type="button" id="btn-close-audit-box" class="btn btn-sm">Close</button>
+        </div>
+        <div class="panel-body">
+          <div id="dash-audit-chips" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;"></div>
+          <div id="dash-audit-list" class="feed-list" style="max-height:260px; overflow-y:auto;"></div>
+        </div>
+      </div>
+
+      <!-- 2-Column Visual Analytics Grid (Semi-Circular Arc + Orders Bar Chart) -->
+      <div class="dash-charts-grid">
+        <!-- Left: Semi-Circular Active Orders Arc Card -->
+        <div class="dash-card dash-arc-card">
+          <div class="arc-floating-pill">
+            <span class="arc-pill-lbl">ACTIVE ORDERS</span>
+            <span class="arc-pill-val" id="arc-active-pct">0%</span>
+          </div>
+          <div class="arc-svg-wrap">
+            <svg viewBox="0 0 220 120" class="arc-svg" aria-hidden="true">
+              <path d="M 22 108 A 88 88 0 0 1 198 108" fill="none" stroke="#F1ECE4" stroke-width="17" stroke-linecap="butt" />
+              <path id="arc-seg-transit" d="M 22 108 A 88 88 0 0 1 198 108" fill="none" stroke="#DF9A73" stroke-width="17" stroke-linecap="butt" stroke-dasharray="0 277" />
+              <path id="arc-seg-delivered" d="M 22 108 A 88 88 0 0 1 198 108" fill="none" stroke="#1F1C18" stroke-width="17" stroke-linecap="butt" stroke-dasharray="0 277" />
+            </svg>
+            <div class="arc-center-text">
+              <span class="arc-total-lbl">TOTAL</span>
+              <span class="arc-total-num" id="arc-total">0</span>
+            </div>
+          </div>
+          <div class="arc-stats-row">
+            <div class="arc-stat">
+              <span class="arc-stat-lbl">IN TRANSIT</span>
+              <span class="arc-stat-num" id="arc-transit">0</span>
+            </div>
+            <div class="arc-stat">
+              <span class="arc-stat-lbl">OVERDUE</span>
+              <span class="arc-stat-num" id="arc-overdue">0</span>
+            </div>
+            <div class="arc-stat">
+              <span class="arc-stat-lbl">DELIVERED</span>
+              <span class="arc-stat-num" id="arc-delivered">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Orders Dynamics Bar Chart Card (CHEMXE Style) -->
+        <div class="dash-card dash-bars-card">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:16px;">
+            <div>
+              <div style="font-size:15px; font-weight:600; color:var(--text-primary);">Orders Dynamics</div>
+              <div style="font-size:12px; color:var(--text-muted);" id="dash-cod-summary">Trax &amp; Leopards volume</div>
+            </div>
+            <button type="button" class="btn btn-sm" data-nav-jump="overview">View All</button>
+          </div>
+          <div id="dash-bar-chart" class="dash-bar-chart"></div>
+          <div id="dash-bar-detail" style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; margin:10px 0 6px; padding:8px 11px; border-radius:10px; background:var(--surface-muted, #f6f4f0); border:1px solid var(--border-subtle); font-size:12px; color:var(--text-secondary);">
+            <span>Tap any bar above to inspect daily Dispatches, Returns &amp; COD</span>
+          </div>
+          <div class="dash-courier-split">
+            <span class="chip chip-amber" id="dash-split-leopards">Leopards: 0</span>
+            <span class="chip chip-blue" id="dash-split-trax">Trax: 0</span>
+            <span class="chip chip-purple" id="dash-split-rto">RTO: 0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actionable Status Shortcut Strip -->
+      <div class="dash-quick-grid">
+        <button type="button" class="dash-quick-tile" data-jump-status="booked">
+          <div class="dash-quick-left">
+            <span class="dash-quick-dot" style="background:var(--amber-text);"></span>
+            <div>
+              <div class="dash-quick-title">Pending Load Sheet</div>
+              <div class="dash-quick-sub">Booked parcels awaiting scan into Processing</div>
+            </div>
+          </div>
+          <span class="dash-quick-num" id="dquick-booked">0</span>
+        </button>
+
+        <button type="button" class="dash-quick-tile" data-jump-status="rto">
+          <div class="dash-quick-left">
+            <span class="dash-quick-dot" style="background:var(--purple-text);"></span>
+            <div>
+              <div class="dash-quick-title">Return In Transit (RTO)</div>
+              <div class="dash-quick-sub">Returning parcels awaiting warehouse scan</div>
+            </div>
+          </div>
+          <span class="dash-quick-num" id="dquick-rto">0</span>
+        </button>
+
+        <button type="button" class="dash-quick-tile" data-jump-status="overdue">
+          <div class="dash-quick-left">
+            <span class="dash-quick-dot" style="background:var(--red-solid);"></span>
+            <div>
+              <div class="dash-quick-title">5d &amp; 10d Overdue Alerts</div>
+              <div class="dash-quick-sub">In-transit orders needing immediate follow-up</div>
+            </div>
+          </div>
+          <span class="dash-quick-num" style="color:var(--red-text);" id="dquick-overdue">0</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         VIEW 1: ORDERS (AIRY KEITOTO WARM EDITORIAL TABLE)
+         ==================================================================== -->
+    <section id="view-overview" class="view-section">
+      <div class="page-head">
+        <div>
+          <h1 class="page-title">Orders</h1>
+          <p class="page-sub">Track dispatches, booked load sheets &amp; returns</p>
+        </div>
+        <div class="btn-group">
+          <button type="button" id="btn-top-export-all" class="btn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Export</span>
+          </button>
+          <button type="button" id="btn-toggle-gate" class="btn btn-primary">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span id="btn-toggle-gate-label">New Order</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 4 Airy Icon-Box KPI Cards -->
+      <div class="kpi-strip">
+        <button type="button" class="kpi-card" data-kpi-filter="all">
+          <div class="kpi-icon-box">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          </div>
+          <div class="kpi-meta">
+            <div class="kpi-label-row">
+              <span class="kpi-label">Total orders</span>
+              <span class="kpi-mob-pill mint" id="kpi-pill-total">Live</span>
+            </div>
+            <span class="kpi-num" id="kpi-total">0</span>
+          </div>
+        </button>
+
+        <button type="button" class="kpi-card" data-kpi-filter="normal">
+          <div class="kpi-icon-box">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+          </div>
+          <div class="kpi-meta">
+            <div class="kpi-label-row">
+              <span class="kpi-label">In transit</span>
+              <span class="kpi-mob-pill sand" id="kpi-pill-transit">0%</span>
+            </div>
+            <span class="kpi-num" id="kpi-normal">0</span>
+          </div>
+        </button>
+
+        <button type="button" class="kpi-card is-amber" data-kpi-filter="overdue">
+          <div class="kpi-icon-box">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div class="kpi-meta">
+            <div class="kpi-label-row">
+              <span class="kpi-label">Overdue</span>
+              <span class="kpi-mob-pill amber" id="kpi-pill-overdue">5d+</span>
+            </div>
+            <span class="kpi-num" id="kpi-overdue">0</span>
+          </div>
+        </button>
+
+        <button type="button" class="kpi-card is-green" data-kpi-filter="delivered">
+          <div class="kpi-icon-box">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div class="kpi-meta">
+            <div class="kpi-label-row">
+              <span class="kpi-label">Delivered</span>
+              <span class="kpi-mob-pill mint" id="kpi-pill-delivered">0%</span>
+            </div>
+            <span class="kpi-num" id="kpi-delivered">0</span>
+          </div>
+        </button>
+      </div>
+
+      <!-- Double-Scan / Duplicate Alert Strip -->
+      <div id="gate-dup-banner" class="alert-strip" style="display:none;">
+        <div>
+          <strong id="gate-dup-title">DUPLICATE BLOCKED</strong>
+          <span id="gate-dup-sub" style="margin-left:6px;"></span>
+        </div>
+        <div class="btn-group">
+          <button type="button" id="btn-gate-dup-inspect" class="btn btn-sm btn-danger-solid">Inspect</button>
+          <button type="button" id="btn-gate-dup-close" class="btn btn-sm">Dismiss</button>
+        </div>
+      </div>
+
+      <!-- Collapsible Quick Intake Drawer -->
+      <div id="gate-drawer-box" class="gate-drawer-box">
+        <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px;">
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <div class="mode-tabs" role="tablist">
+              <button type="button" class="mode-tab active" data-gate-mode="dispatch">Dispatch</button>
+              <button type="button" class="mode-tab" data-gate-mode="booked">Booked</button>
+              <button type="button" class="mode-tab" data-gate-mode="return">Return</button>
+            </div>
+            <span class="mono" style="font-size:11.5px; color:var(--text-muted);" id="gate-detect-hint">Auto-detect courier</span>
+          </div>
+          <button type="button" id="btn-close-gate-box" class="btn btn-sm">Close</button>
+        </div>
+
+        <form id="gate-form" autocomplete="off">
+          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:10px;">
+            <div id="gate-awb-shell" class="awb-input-shell" style="flex:1 1 260px;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2"><path d="M3 5v14"/><path d="M8 5v14"/><path d="M12 5v14"/><path d="M17 5v14"/><path d="M21 5v14"/></svg>
+              <input type="text" id="inp-gate-cn" class="mono" placeholder="Scan or type Tracking CN..." required />
+              <button type="button" id="btn-gate-camera" class="icon-btn" style="height:30px; width:30px;" title="Camera Scan">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+              </button>
+            </div>
+
+            <select id="inp-gate-courier" class="form-select" style="width:auto; min-width:125px; height:44px;" aria-label="Courier"></select>
+            <span id="gate-status-chip" class="chip chip-blue">Auto</span>
+            <button type="button" id="btn-toggle-extra-fields" class="btn" style="height:44px;">+ Details</button>
+            <button type="submit" id="btn-gate-submit" class="btn btn-primary" style="height:44px; padding:0 20px;">
+              <span id="gate-submit-label">Save</span>
+            </button>
+          </div>
+
+          <div id="gate-extra-fields" style="display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--border-subtle);">
+            <div class="form-grid form-grid-2">
+              <input type="text" id="inp-gate-order" class="form-input" placeholder="Order ID" />
+              <input type="date" id="inp-gate-date" class="form-input" />
+              <input type="text" id="inp-gate-customer" class="form-input" placeholder="Customer Name" />
+              <input type="tel" id="inp-gate-phone" class="form-input" placeholder="Phone" />
+              <input type="text" id="inp-gate-product" class="form-input" style="grid-column:1 / -1;" placeholder="Product / Order Description (e.g. 2x Black Hoodie, Lawn Suit)" />
+            </div>
+          </div>
+        </form>
+
+        <div id="live-intake-feed" class="feed-list" style="margin-top:12px; background:#ffffff; border:1px solid var(--border-subtle); border-radius:10px; overflow:hidden;"></div>
+      </div>
+
+      <!-- Keitoto Short Crisp Underline Status Tabs -->
+      <div class="underline-tabs" id="status-underline-tabs" role="tablist">
+        <button type="button" class="u-tab active" data-status-tab="all">All <span class="u-cnt" id="utab-all">0</span></button>
+        <button type="button" class="u-tab" data-status-tab="booked">Pending <span class="u-cnt" id="utab-booked">0</span></button>
+        <button type="button" class="u-tab" data-status-tab="normal">Processing <span class="u-cnt" id="utab-normal">0</span></button>
+        <button type="button" class="u-tab" data-status-tab="warning5">5d <span class="u-cnt" id="utab-warning5">0</span></button>
+        <button type="button" class="u-tab" data-status-tab="critical10">10d <span class="u-cnt" id="utab-critical10">0</span></button>
+        <button type="button" class="u-tab" data-status-tab="rto">RTO <span class="u-cnt" id="utab-rto">0</span></button>
+        <button type="button" class="u-tab" data-status-tab="delivered">Delivered <span class="u-cnt" id="utab-delivered">0</span></button>
+        <button type="button" class="u-tab" data-status-tab="returned">Returned <span class="u-cnt" id="utab-returned">0</span></button>
+      </div>
+
+      <!-- One-Click Confirm Banner for Courier-Reported "Delivered to Shipper" Returns -->
+      <div id="shipper-returns-confirm-bar" style="display:none; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; padding:12px 14px; margin-bottom:12px; border-radius:14px; background:#faf4ec; border:1px solid #ead8c4;">
+        <div style="min-width:0; flex:1 1 220px;">
+          <div style="font-size:13px; font-weight:700; color:var(--text-primary);">
+            <span id="shipper-returns-count">0</span> Returns marked "Delivered to Shipper" by courier
+          </div>
+          <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">
+            Purani delivered-to-shipper returns ko 1-click confirm karein (nayi returns hamesha Return Scanner se scan hongi).
+          </div>
+        </div>
+        <div class="btn-group" style="gap:6px;">
+          <button type="button" id="btn-view-shipper-returns" class="btn btn-sm">View RTO</button>
+          <button type="button" id="btn-confirm-shipper-returns" class="btn btn-sm btn-primary">Confirm All (<span id="shipper-returns-btn-cnt">0</span>)</button>
+        </div>
+      </div>
+
+      <!-- Minimal Search & Courier Filter -->
+      <div class="toolbar-row">
+        <div class="toolbar-search">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="search" id="filter-search" class="form-input" placeholder="Search orders..." />
+        </div>
+
+        <div class="toolbar-controls" style="display:flex; flex-wrap:wrap; align-items:center; gap:6px;">
+          <input type="date" id="filter-date-from" class="form-input" style="height:36px; width:132px; font-size:12px; padding:0 8px;" title="From Date" />
+          <input type="date" id="filter-date-to" class="form-input" style="height:36px; width:132px; font-size:12px; padding:0 8px;" title="To Date" />
+          <select id="filter-courier" class="form-select toolbar-select" aria-label="Filter Courier"></select>
+          <select id="filter-page-size" class="form-select toolbar-select" style="width:auto; min-width:96px;" aria-label="Parcels per page">
+            <option value="25">25 / page</option>
+            <option value="50" selected>50 / page</option>
+            <option value="100">100 / page</option>
+            <option value="250">250 / page</option>
+            <option value="99999">Show All</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Spacious Open 5-Column Orders Table -->
+      <div class="table-wrap desktop-only">
+        <table class="ledger-table">
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Product / Description</th>
+              <th>Customer</th>
+              <th>Status</th>
+              <th>Date</th>
+              <th style="text-align:right;"></th>
+            </tr>
+          </thead>
+          <tbody id="ledger-tbody"></tbody>
+        </table>
+      </div>
+
+      <div id="ledger-mobile" class="mobile-ledger"></div>
+
+      <div class="pagination-bar" id="pagination-bar">
+        <div style="font-size:12.5px; color:var(--text-muted);" id="pagination-info">Showing 0 orders</div>
+        <div class="btn-group" id="pagination-controls"></div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         VIEW 2: DEDICATED CSV & EXCEL SHEET UPLOADER (TRAX & LEOPARDS)
+         ==================================================================== -->
+    <section id="view-upload" class="view-section">
+      <div class="page-head">
+        <div>
+          <h1 class="page-title">Upload Sheet</h1>
+          <p class="page-sub">Import Trax &amp; Leopards CSV or Excel load &amp; receiving sheets</p>
+        </div>
+        <div class="btn-group">
+          <button type="button" id="btn-sample-trax" class="btn btn-sm">Trax Sample</button>
+          <button type="button" id="btn-sample-leopards" class="btn btn-sm">Leopards Sample</button>
+        </div>
+      </div>
+
+      <div class="panel" style="border-radius:16px;">
+        <div class="panel-body">
+          <!-- Sheet Mode Selector -->
+          <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px;">
+            <div class="mode-tabs" id="upload-mode-tabs" role="tablist">
+              <button type="button" class="mode-tab active" data-sheet-mode="auto">Auto Sheet</button>
+              <button type="button" class="mode-tab" data-sheet-mode="load_sheet">Load Sheet (Pending)</button>
+              <button type="button" class="mode-tab" data-sheet-mode="receiving_sheet">Receiving Sheet (Processing)</button>
+            </div>
+            <span class="chip chip-neutral" id="upload-format-badge">CSV • XLSX • XLS</span>
+          </div>
+
+          <div id="upload-mode-hint" style="font-size:12.5px; color:var(--text-muted); margin-bottom:14px;">
+            Auto-detects Trax Sonic &amp; Leopards columns, exact status, COD amount, destination city &amp; phone.
+          </div>
+
+          <!-- Dropzone -->
+          <div id="csv-dropzone" class="csv-dropzone">
+            <input type="file" id="csv-file-input" accept=".csv,.xlsx,.xls,.tsv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" class="sr-only" />
+            <div style="width:44px; height:44px; border-radius:12px; background:#ffffff; border:1px solid var(--border-subtle); display:inline-flex; align-items:center; justify-content:center; margin-bottom:10px; color:var(--warm-accent);">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div style="font-weight:600; font-size:14.5px; color:var(--text-primary);">Drop CSV or Excel file here, or tap to browse</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">Supports Trax Order Details, Leopards Export, Load Sheets &amp; Receiving Sheets</div>
+          </div>
+
+          <!-- Smart Upsert Options -->
+          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:18px; margin-top:14px;">
+            <label style="display:inline-flex; align-items:center; gap:7px; font-size:12.5px; cursor:pointer;">
+              <input type="checkbox" id="chk-csv-update-existing" />
+              <span>Also update existing orders (OFF = add ONLY new parcels)</span>
+            </label>
+            <label style="display:inline-flex; align-items:center; gap:7px; font-size:12.5px; cursor:pointer;">
+              <input type="checkbox" id="chk-csv-skip-cancelled" />
+              <span>Skip Cancelled rows</span>
+            </label>
+          </div>
+
+          <!-- Live Preview Panel -->
+          <div id="csv-preview-panel" style="display:none; margin-top:18px; padding-top:16px; border-top:1px solid var(--border-subtle);">
+            <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px;">
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <strong id="csv-preview-summary" style="font-size:13.5px;"></strong>
+                <span class="chip chip-blue" id="csv-detected-format"></span>
+              </div>
+              <div class="btn-group">
+                <button type="button" id="btn-cancel-csv" class="btn btn-sm">Cancel</button>
+                <button type="button" id="btn-confirm-csv-import" class="btn btn-sm btn-primary">Import Sheet</button>
+              </div>
+            </div>
+            <div class="table-wrap" style="max-height:360px; overflow-y:auto; border:1px solid var(--border-subtle); border-radius:10px;">
+              <table class="ledger-table">
+                <thead>
+                  <tr>
+                    <th>Action</th>
+                    <th>CN / Order</th>
+                    <th>Courier</th>
+                    <th>Product / Description</th>
+                    <th>Customer / City</th>
+                    <th>Status</th>
+                    <th>COD</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody id="csv-preview-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         VIEW 3: RETURN SCANNER (CLEAN WARM LUXURY OPTICAL SCANNER)
+         ==================================================================== -->
+    <section id="view-returns" class="view-section">
+      <div class="page-head scanner-page-head">
+        <div>
+          <h1 class="page-title">Scanner</h1>
+          <p class="page-sub" id="scanner-page-sub">Scan returns or move Pending load-sheet parcels to Processing</p>
+        </div>
+        <div class="scanner-head-actions">
+          <div class="scanner-head-row">
+            <div class="mode-tabs" id="scanner-mode-tabs" role="tablist">
+              <button type="button" class="mode-tab active" data-scanner-mode="dispatch">Dispatch Scan</button>
+              <button type="button" class="mode-tab" data-scanner-mode="return">Return Scan</button>
+            </div>
+            <button type="button" id="btn-toggle-sound" class="btn btn-sm scanner-sound-btn">Sound: ON</button>
+          </div>
+          <div class="scanner-head-row scanner-csv-row">
+            <button type="button" class="btn btn-sm scanner-csv-btn" data-export-returns-today="Leopards">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--warm-accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
+              <span>Leopards CSV</span>
+            </button>
+            <button type="button" class="btn btn-sm scanner-csv-btn" data-export-returns-today="Trax">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
+              <span>Trax CSV</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="scan-feedback-card" class="scan-feedback-card">
+        <div class="scan-fb-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+        </div>
+        <div style="min-width:0; flex:1;">
+          <div class="scan-fb-title" id="scan-fb-title">Ready to scan</div>
+          <div class="scan-fb-sub" id="scan-fb-sub">Start camera or use USB barcode gun</div>
+        </div>
+        <div class="scan-fb-counter" aria-label="Session scanned count">
+          <span class="scan-fb-counter-lbl">SCANNED</span>
+          <span class="scan-fb-counter-val mono" id="live-scan-count">0</span>
+        </div>
+      </div>
+
+      <div class="scanner-layout">
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div class="optical-frame">
+            <div class="optical-card-head">
+              <div class="optical-card-lead">
+                <div class="optical-card-icon" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+                </div>
+                <div style="min-width:0;">
+                  <div class="optical-card-title-row">
+                    <span class="optical-card-title">Optical Viewfinder</span>
+                    <span class="optical-ready-pill"><span class="dot dot-green"></span>Ready</span>
+                  </div>
+                  <div class="optical-card-sub">Auto-detects Code 128, GS1 &amp; QR</div>
+                </div>
+              </div>
+              <span class="optical-usb-pill">USB Gun Active</span>
+            </div>
+
+            <div id="return-camera-stage" class="optical-stage">
+              <span class="optical-status-pill"><span class="dot dot-green"></span><span id="scanner-engine-lbl">READY • 1D OPTICAL</span></span>
+              <div id="return-camera-reader" style="width:100%;"></div>
+              <div class="live-viewfinder-overlay" aria-hidden="true">
+                <div class="live-vf-box">
+                  <span class="reticle-corner tl"></span>
+                  <span class="reticle-corner tr"></span>
+                  <span class="reticle-corner bl"></span>
+                  <span class="reticle-corner br"></span>
+                </div>
+                <div class="live-vf-caption">Point camera at barcode or QR</div>
+              </div>
+              <div id="return-camera-placeholder" class="scanner-reticle-wrap">
+                <div class="scanner-reticle">
+                  <span class="reticle-corner tl"></span>
+                  <span class="reticle-corner tr"></span>
+                  <span class="reticle-corner bl"></span>
+                  <span class="reticle-corner br"></span>
+                  <span class="reticle-laser"></span>
+                  <svg width="46" height="32" viewBox="0 0 46 32" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="2.4" stroke-linecap="round"><path d="M4 4v24"/><path d="M10 4v24"/><path d="M15 4v24"/><path d="M22 4v24"/><path d="M27 4v24"/><path d="M33 4v24"/><path d="M38 4v24"/><path d="M42 4v24"/></svg>
+                </div>
+                <div class="reticle-caption-pill">Align code inside frame</div>
+              </div>
+            </div>
+
+            <div class="optical-bar">
+              <button type="button" id="btn-return-cam-facing" class="optical-ctrl-btn" title="Switch Back / Front Camera">Cam: Back</button>
+              <button type="button" id="btn-return-scan-mode" class="optical-ctrl-btn" title="Cycle Auto (QR+1D) / 1D Barcode / QR Code">QR+1D</button>
+              <button type="button" id="btn-return-torch" class="optical-ctrl-btn" style="display:none;">Flash</button>
+              <button type="button" id="btn-return-zoom" class="optical-ctrl-btn" style="display:none;">1x</button>
+              <button type="button" id="btn-start-return-cam" class="btn btn-primary optical-start-btn">Start Camera</button>
+              <button type="button" id="btn-stop-return-cam" class="btn btn-danger-solid optical-stop-btn" style="display:none;">Stop</button>
+            </div>
+          </div>
+          <div id="return-camera-error" style="color:var(--red-text); font-size:12px; display:none;"></div>
+
+          <form id="return-scan-form" class="scanner-input-bar" autocomplete="off">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.9"><path d="M3 5v14"/><path d="M8 5v14"/><path d="M12 5v14"/><path d="M17 5v14"/><path d="M21 5v14"/></svg>
+            <input type="text" id="inp-return-scan" class="mono" placeholder="Scan USB gun or type CN..." />
+            <button type="submit" class="btn btn-primary btn-sm" style="height:38px; border-radius:12px; padding:0 18px;">Verify</button>
+          </form>
+
+          <!-- Return Condition & Courier Claim Photo Proof -->
+          <div id="return-claim-bar" class="panel" style="margin:0; border-radius:18px;">
+            <div class="panel-body" style="padding:12px 14px; display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
+              <div style="display:flex; align-items:center; gap:8px; flex:1 1 220px; min-width:0;">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--green-text)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                <select id="inp-return-condition" class="form-select" style="flex:1; min-width:0; height:36px; font-size:12.5px; border:none; background:transparent; padding-left:0;" aria-label="Return Condition / Claim Reason">
+                  <option value="Sealed / Intact Return">Sealed / Intact Return (No Claim)</option>
+                  <option value="Refused Unopened / Fake Attempt">Refused Unopened / Fake Attempt (Claim)</option>
+                  <option value="Opened / Tampered Flyer">Opened / Tampered Flyer (Claim)</option>
+                  <option value="Damaged / Crushed Parcel">Damaged / Crushed Parcel (Claim)</option>
+                  <option value="Wrong / Swapped Item Inside">Wrong / Swapped Item Inside (Claim)</option>
+                </select>
+              </div>
+              <label for="inp-return-photo" class="btn btn-sm" style="height:34px; display:inline-flex; align-items:center; gap:6px; cursor:pointer;">
+                <span id="return-photo-lbl">Attach Proof Photo</span>
+              </label>
+              <input type="file" id="inp-return-photo" accept="image/*" capture="environment" class="sr-only" />
+              <img id="return-photo-preview" alt="Proof" style="display:none; width:34px; height:34px; border-radius:8px; object-fit:cover; border:1px solid var(--border-subtle);" />
+              <button type="button" id="btn-print-return-slip" class="btn btn-sm" style="height:34px;">Print Return Slip</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div class="batch-stats">
+            <div class="batch-stat">
+              <div class="batch-stat-top"><span class="lbl">Verified</span><span class="dot dot-green"></span></div>
+              <div class="num" id="sess-valid">0</div>
+            </div>
+            <div class="batch-stat">
+              <div class="batch-stat-top"><span class="lbl">Duplicate</span><span class="dot dot-red"></span></div>
+              <div class="num" style="color:var(--red-text);" id="sess-dup">0</div>
+            </div>
+            <div class="batch-stat">
+              <div class="batch-stat-top"><span class="lbl">Leopards</span><span class="dot dot-amber"></span></div>
+              <div class="num" id="sess-leopards">0</div>
+            </div>
+            <div class="batch-stat">
+              <div class="batch-stat-top"><span class="lbl">Trax</span><span class="dot dot-blue"></span></div>
+              <div class="num" id="sess-trax">0</div>
+            </div>
+          </div>
+
+          <div class="panel" style="margin-bottom:0; border-radius:16px;">
+            <div class="panel-head" style="padding:14px 16px;">
+              <h2 class="panel-title">Recent Scans</h2>
+              <span class="chip chip-green" style="font-size:11px;">Live</span>
+            </div>
+            <div id="return-scan-stream" class="feed-list" style="max-height:310px; overflow-y:auto;">
+              <div class="empty-state" style="padding:32px 16px;">No scans yet in this session</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         VIEW 4: 5-DAY & 10-DAY ALERTS
+         ==================================================================== -->
+    <section id="view-alerts" class="view-section">
+      <div class="page-head">
+        <div>
+          <h1 class="page-title">Alerts</h1>
+          <p class="page-sub">5-day warnings and 10-day overdue</p>
+        </div>
+        <div class="btn-group">
+          <button type="button" class="btn btn-danger" data-export-complaint="Leopards">Leopards CSV</button>
+          <button type="button" class="btn btn-primary" data-export-complaint="Trax">Trax CSV</button>
+        </div>
+      </div>
+
+      <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px; margin-bottom:16px;">
+        <div class="mode-tabs">
+          <button type="button" class="mode-tab active" data-alert-tab="critical10">10-Day Critical (<span id="tab-count-10d">0</span>)</button>
+          <button type="button" class="mode-tab" data-alert-tab="warning5">5-Day Follow-Up (<span id="tab-count-5d">0</span>)</button>
+        </div>
+        <div class="seg-switch" id="alerts-courier-pills"></div>
+      </div>
+
+      <div class="panel">
+        <div id="alerts-list-container"></div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         VIEW 5: REPORTS & BACKUP
+         ==================================================================== -->
+    <section id="view-reports" class="view-section">
+      <div class="page-head">
+        <div>
+          <h1 class="page-title">Reports</h1>
+          <p class="page-sub">Courier exports, backups, and custom couriers</p>
+        </div>
+        <div class="btn-group">
+          <button type="button" id="btn-print-dispatch-slip" class="btn btn-sm">Print Dispatch Slip</button>
+          <button type="button" id="btn-print-return-slip-rep" class="btn btn-sm">Print Return Slip</button>
+          <button type="button" class="btn btn-danger btn-sm" data-report-courier="All" data-report-type="claims">Export Courier Claims CSV</button>
+          <button type="button" class="btn btn-primary btn-sm" data-nav-jump="upload">Upload Sheet</button>
+        </div>
+      </div>
+
+      <!-- COD Cash Reconciliation & Courier Claims Summary -->
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">COD Cash Reconciliation &amp; Courier Claims</h2>
+            <p class="panel-sub" style="margin:2px 0 0;">Live COD breakdown per courier + claim-eligible return value</p>
+          </div>
+          <button type="button" class="btn btn-sm" data-report-courier="All" data-report-type="cod_recon">Export COD CSV</button>
+        </div>
+        <div class="table-wrap">
+          <table class="ledger-table">
+            <thead>
+              <tr>
+                <th>Courier</th>
+                <th>Delivered</th>
+                <th>Delivered COD (Rs.)</th>
+                <th>In-Transit COD (Rs.)</th>
+                <th>Returns</th>
+                <th>Claim Eligible (Rs.)</th>
+              </tr>
+            </thead>
+            <tbody id="cod-recon-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Today's Staff Performance -->
+      <div class="panel" style="margin-bottom:16px;">
+        <div class="panel-head">
+          <h2 class="panel-title">Today's Staff Performance</h2>
+          <span class="chip chip-blue" id="staff-perf-date-chip">Today</span>
+        </div>
+        <div class="panel-body" id="staff-perf-body" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
+      </div>
+
+      <div class="report-grid">
+        <div class="panel">
+          <div class="panel-head"><h2 class="panel-title">Courier CSV Reports</h2></div>
+          <div class="panel-body">
+            <div class="form-grid form-grid-2">
+              <button type="button" class="btn btn-danger" data-report-courier="Leopards" data-report-type="overdue_10">Leopards 10d Overdue</button>
+              <button type="button" class="btn btn-danger" data-report-courier="Trax" data-report-type="overdue_10">Trax 10d Overdue</button>
+              <button type="button" class="btn" data-report-courier="Leopards" data-report-type="returns_today">Leopards Returns Today</button>
+              <button type="button" class="btn" data-report-courier="Trax" data-report-type="returns_today">Trax Returns Today</button>
+              <button type="button" class="btn" data-report-courier="Leopards" data-report-type="booked">Leopards Booked Sheet</button>
+              <button type="button" class="btn" data-report-courier="Trax" data-report-type="booked">Trax Booked Sheet</button>
+              <button type="button" class="btn" data-report-courier="Leopards" data-report-type="all">All Leopards Ledger</button>
+              <button type="button" class="btn" data-report-courier="Trax" data-report-type="all">All Trax Ledger</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2 class="panel-title">Backup &amp; Restore</h2></div>
+          <div class="panel-body">
+            <div class="btn-group" style="margin-bottom:10px;">
+              <button type="button" id="btn-export-json" class="btn btn-primary btn-sm">JSON Backup</button>
+              <button type="button" id="btn-export-encrypted" class="btn btn-sm">AES-256 Backup</button>
+              <button type="button" id="btn-restore-merge" class="btn btn-sm">Restore JSON</button>
+              <button type="button" id="btn-restore-encrypted" class="btn btn-sm">Decrypt AES</button>
+            </div>
+            <input type="file" id="json-restore-input" accept=".json,application/json" class="sr-only" />
+            <input type="file" id="enc-restore-input" accept=".json,application/json" class="sr-only" />
+            <div class="divider"></div>
+            <div class="btn-group">
+              <button type="button" id="btn-load-sample" class="btn btn-sm">Load Sample Data</button>
+              <button type="button" id="btn-clear-all-data" class="btn btn-sm btn-danger">Clear All Data</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2 class="panel-title">Custom Couriers</h2></div>
+          <div class="panel-body">
+            <div id="courier-list-chips" style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;"></div>
+            <form id="add-courier-form" style="display:flex; gap:8px; flex-wrap:wrap;">
+              <input type="text" id="inp-new-courier-name" class="form-input" style="flex:1; min-width:130px;" placeholder="Courier (e.g. PostEx, TCS)" required />
+              <input type="text" id="inp-new-courier-prefixes" class="form-input mono" style="width:120px;" placeholder="Prefix (PX)" />
+              <button type="submit" class="btn btn-primary">Add</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         VIEW 6: SETTINGS (CLOUD SYNC, COURIER APIs & PIN LOCK)
+         ==================================================================== -->
+    <section id="view-settings" class="view-section">
+      <div class="page-head">
+        <div>
+          <h1 class="page-title">Settings</h1>
+          <p class="page-sub">Cloud sync, courier APIs, and PIN lock</p>
+        </div>
+      </div>
+
+      <div id="local-proxy-banner" class="alert-strip info" style="display:none;">
+        <span><strong>Desktop Mode Tip:</strong> Launch <code>REED-Ops.exe</code> for permanent local disk saving + zero-CORS Trax/Leopards Live APIs.</span>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">Local Disk Storage &amp; Multi-Device Cloud Sync</h2>
+          <div class="btn-group">
+            <span id="disk-db-badge" class="chip chip-neutral">Browser Storage</span>
+            <span id="cloud-sync-badge" class="chip chip-neutral">Cloud Off</span>
+          </div>
+        </div>
+        <div class="panel-body">
+          <form id="cloud-sync-form" class="form-grid" autocomplete="off">
+            <div class="form-field">
+              <label class="form-label" for="inp-sync-account">Sync Account (User Name or Email)</label>
+              <input type="text" id="inp-sync-account" class="form-input" placeholder="e.g. mmvirsa@gmail.com or Main Warehouse" maxlength="80" />
+            </div>
+            <details style="background:var(--surface-muted, #f6f4f0); border:1px solid var(--border-subtle); border-radius:10px; padding:8px 12px;">
+              <summary style="cursor:pointer; font-size:12px; font-weight:600; color:var(--text-muted); user-select:none;">Advanced Cloud Endpoint (Optional / Hidden)</summary>
+              <div class="form-grid form-grid-3" style="margin-top:10px;">
+                <div class="form-field">
+                  <label class="form-label" for="inp-sync-provider">Cloud Sync Provider</label>
+                  <select id="inp-sync-provider" class="form-select">
+                    <option value="supabase">Supabase PostgreSQL (Free 500MB — Fast)</option>
+                    <option value="google_sheets">Google Sheets Web App (Free)</option>
+                    <option value="firebase">Firebase Realtime Database</option>
+                  </select>
+                </div>
+                <div class="form-field">
+                  <label class="form-label" for="inp-sync-url">Supabase / Web App / Firebase URL</label>
+                  <input type="url" id="inp-sync-url" class="form-input mono" placeholder="https://xxxx.supabase.co or script.google.com/..." />
+                </div>
+                <div class="form-field">
+                  <label class="form-label" for="inp-sync-secret">Supabase Anon Key / Sync Secret</label>
+                  <input type="password" id="inp-sync-secret" class="form-input mono" placeholder="Paste Supabase anon key or optional token" />
+                </div>
+              </div>
+            </details>
+            <div style="display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:10px;">
+              <label style="display:flex; align-items:center; gap:7px; font-size:12.5px; cursor:pointer;">
+                <input type="checkbox" id="chk-cloud-sync-enabled" />
+                <span>Enable continuous two-way cloud sync</span>
+              </label>
+              <div class="btn-group">
+                <button type="submit" class="btn btn-primary btn-sm">Save Sync Settings</button>
+                <button type="button" id="btn-cloud-sync-now" class="btn btn-sm">Sync Now</button>
+                <button type="button" id="btn-host-erase-all" class="btn btn-danger btn-sm" style="display:none;" title="Desktop Host Only: Wipe all parcel data across Host &amp; Cloud">Erase All Data</button>
+              </div>
+            </div>
+            <div id="cloud-sync-meta" style="font-size:11.5px; color:var(--text-muted);">
+              Local Disk DB saves automatically in <code>%LOCALAPPDATA%\MM-VIRSA-Ops\virsa-database.json</code> when running <code>REED-Ops.exe</code>.
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="report-grid">
+        <div class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Trax Sonic v2.0 &amp; Leopards API</h2>
+            <span id="proxy-status-badge" class="chip chip-neutral">Direct</span>
+          </div>
+          <div class="panel-body">
+            <form id="api-config-form" class="form-grid" autocomplete="off">
+              <div class="form-field">
+                <label class="form-label" for="inp-trax-key"><span>Trax Sonic API Key</span><span id="trax-cred-badge" class="chip chip-neutral">Not Set</span></label>
+                <input type="password" id="inp-trax-key" class="form-input mono" placeholder="Paste API Key from Sonic Portal → Profile" />
+              </div>
+              <div class="form-grid form-grid-2">
+                <div class="form-field">
+                  <label class="form-label" for="inp-trax-env">Trax Server</label>
+                  <select id="inp-trax-env" class="form-select">
+                    <option value="live">Live (sonic.pk)</option>
+                    <option value="testing">Testing (app.sonic.pk)</option>
+                  </select>
+                </div>
+                <div class="form-field">
+                  <label class="form-label" for="inp-api-proxy">Optional Proxy URL</label>
+                  <input type="url" id="inp-api-proxy" class="form-input mono" placeholder="Leave blank on localhost:8787" />
+                </div>
+              </div>
+              <div class="form-grid form-grid-2">
+                <div class="form-field">
+                  <label class="form-label" for="inp-lcs-key"><span>Leopards API Key</span><span id="leopards-cred-badge" class="chip chip-neutral">Not Set</span></label>
+                  <input type="text" id="inp-lcs-key" class="form-input mono" placeholder="LCS API Key" />
+                </div>
+                <div class="form-field">
+                  <label class="form-label" for="inp-lcs-pass">Leopards Password</label>
+                  <input type="password" id="inp-lcs-pass" class="form-input mono" placeholder="LCS API Password" />
+                </div>
+              </div>
+              <label style="display:flex; align-items:center; gap:7px; font-size:12.5px; cursor:pointer;">
+                <input type="checkbox" id="chk-auto-deliver" checked />
+                <span>Auto-mark parcel Delivered when Live API confirms POD</span>
+              </label>
+              <label style="display:flex; align-items:center; gap:7px; font-size:12.5px; cursor:pointer;">
+                <input type="checkbox" id="chk-auto-live-track" />
+                <span>Auto Live Tracking every 5 min (In-Transit parcels only; OFF = Manual Track only)</span>
+              </label>
+              <div class="btn-group">
+                <button type="submit" class="btn btn-primary">Save API Keys</button>
+                <button type="button" id="btn-test-api" class="btn">Test Live Track</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Warehouse PIN &amp; Staff</h2>
+            <span id="sec-pin-status-badge" class="chip chip-neutral">PIN Off</span>
+          </div>
+          <div class="panel-body">
+            <form id="security-pin-form" class="form-grid" autocomplete="off">
+              <div class="form-grid form-grid-2">
+                <div class="form-field">
+                  <label class="form-label" for="inp-sec-pin">Admin PIN (4–8 digits)</label>
+                  <input type="password" inputmode="numeric" pattern="[0-9]*" id="inp-sec-pin" class="form-input mono" placeholder="e.g. 4829" maxlength="8" />
+                </div>
+                <div class="form-field">
+                  <label class="form-label" for="inp-sec-autolock">Auto-Lock</label>
+                  <select id="inp-sec-autolock" class="form-select">
+                    <option value="5">5 Min</option>
+                    <option value="15" selected>15 Min</option>
+                    <option value="30">30 Min</option>
+                    <option value="0">Manual</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-field">
+                <label class="form-label" for="inp-sec-operator">Station / Staff Name</label>
+                <input type="text" id="inp-sec-operator" class="form-input" placeholder="REED Station" maxlength="40" />
+              </div>
+              <div class="btn-group">
+                <button type="submit" class="btn btn-primary">Save Security</button>
+                <button type="button" id="btn-sec-lock-now" class="btn" style="display:none;">Lock Now</button>
+                <button type="button" id="btn-sec-disable-pin" class="btn btn-danger" style="display:none;">Disable PIN</button>
+              </div>
+            </form>
+
+            <div class="divider"></div>
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+              <span class="form-label" style="margin:0;">Audit Log (<span id="audit-count-pill">0</span>)</span>
+              <button type="button" id="btn-export-audit" class="btn btn-sm">Export Audit CSV</button>
+            </div>
+            <div id="audit-log-box" class="audit-box"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Staff & Employee Accounts, Roles & Access Control -->
+      <div class="panel" id="staff-management-panel" style="margin-top:16px;">
+        <div class="panel-head">
+          <div>
+            <h2 class="panel-title">Staff Accounts, Roles &amp; Access Control</h2>
+            <p class="panel-sub" style="margin:2px 0 0;">Create employee ID &amp; passwords with role-based permissions. Auto-syncs across Desktop, Web &amp; APK.</p>
+          </div>
+          <span id="staff-count-badge" class="chip chip-blue">0 Staff</span>
+        </div>
+        <div class="panel-body">
+          <form id="staff-account-form" class="form-grid" autocomplete="off">
+            <div class="form-grid form-grid-3">
+              <div class="form-field">
+                <label class="form-label" for="inp-emp-id">Staff Login ID</label>
+                <input type="text" id="inp-emp-id" class="form-input mono" placeholder="e.g. ali01 or admin" maxlength="30" required />
+              </div>
+              <div class="form-field">
+                <label class="form-label" for="inp-emp-name">Employee Full Name</label>
+                <input type="text" id="inp-emp-name" class="form-input" placeholder="e.g. Ali Raza" maxlength="50" required />
+              </div>
+              <div class="form-field">
+                <label class="form-label" for="inp-emp-phone">Phone (Optional)</label>
+                <input type="tel" id="inp-emp-phone" class="form-input" placeholder="0300-1234567" maxlength="24" />
+              </div>
+            </div>
+            <div class="form-grid form-grid-3">
+              <div class="form-field">
+                <label class="form-label" for="inp-emp-role">Role</label>
+                <select id="inp-emp-role" class="form-select">
+                  <option value="admin">Admin (Full Access)</option>
+                  <option value="manager">Manager (Ops + Reports)</option>
+                  <option value="scanner" selected>Scanner / Dispatcher</option>
+                  <option value="viewer">Viewer (Read Only)</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label class="form-label" for="inp-emp-pass">Password (min 4 chars)</label>
+                <input type="password" id="inp-emp-pass" class="form-input" placeholder="Leave blank if keeping existing" />
+              </div>
+              <div class="form-field" style="justify-content:flex-end;">
+                <label style="display:flex; align-items:center; gap:7px; font-size:12.5px; cursor:pointer; height:38px;">
+                  <input type="checkbox" id="chk-emp-active" checked />
+                  <span>Account Active</span>
+                </label>
+              </div>
+            </div>
+            <div class="perm-grid">
+              <strong style="width:100%; font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Module Access Permissions</strong>
+              <label class="perm-pill"><input type="checkbox" id="perm-intake" checked /> Intake &amp; Load Sheet</label>
+              <label class="perm-pill"><input type="checkbox" id="perm-return" checked /> Return Scanner</label>
+              <label class="perm-pill"><input type="checkbox" id="perm-edit" /> Edit / Delete Orders</label>
+              <label class="perm-pill"><input type="checkbox" id="perm-reports" /> Reports &amp; Export</label>
+              <label class="perm-pill"><input type="checkbox" id="perm-settings" /> Settings &amp; Staff Admin</label>
+            </div>
+            <div class="btn-group">
+              <button type="submit" class="btn btn-primary">Save Employee</button>
+              <button type="button" id="btn-emp-reset" class="btn">Clear Form</button>
+            </div>
+          </form>
+
+          <div class="divider"></div>
+          <div class="table-wrap" style="max-height:280px; overflow:auto;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Staff ID &amp; Name</th>
+                  <th>Role</th>
+                  <th>Access Permissions</th>
+                  <th>Status</th>
+                  <th style="text-align:right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="staff-list-body">
+                <tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:16px;">No staff accounts yet. Add an Admin account first to enable ID &amp; Password login.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Mobile Floating Bottom Navigation Dock (Dashboard, Orders, Upload, Scanner, Alerts) -->
+  <nav class="bottom-nav" aria-label="Mobile Navigation">
+    <button type="button" class="bottom-nav-btn active" data-nav="dashboard" aria-label="Dashboard">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Home</span>
+    </button>
+    <button type="button" class="bottom-nav-btn" data-nav="overview" aria-label="Orders">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+      <span>Orders</span>
+    </button>
+    <button type="button" class="bottom-nav-btn" data-nav="upload" aria-label="Upload Sheet">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <span>Upload</span>
+    </button>
+    <button type="button" class="bottom-nav-btn" data-nav="returns" aria-label="Scanner">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+      <span>Scan</span>
+    </button>
+    <button type="button" class="bottom-nav-btn" data-nav="alerts" aria-label="Alerts">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span>Alerts</span>
+      <span id="bottom-badge-alerts" class="bell-count hidden" style="top:3px; right:calc(50% - 17px);">0</span>
+    </button>
+  </nav>
+
+  <!-- SLIDE-OVER LIVE TRACKING & INSPECTION DRAWER -->
+  <div id="tracking-drawer" class="drawer-backdrop" role="dialog" aria-modal="true" aria-label="Shipment Inspector">
+    <div class="drawer-panel">
+      <div class="drawer-head">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="mono" style="font-size:15px; font-weight:700; color:var(--text-primary);" id="drawer-cn">—</span>
+          <span class="chip chip-neutral" id="drawer-courier-chip">—</span>
+        </div>
+        <button type="button" id="btn-close-drawer" class="btn btn-sm">Close</button>
+      </div>
+
+      <div class="drawer-body">
+        <div id="drawer-error-banner" class="alert-strip" style="display:none; margin-bottom:0;"></div>
+
+        <div class="drawer-card">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span class="form-label" style="margin:0;">Consignee &amp; Route</span>
+            <span class="mono" style="font-size:11px; color:var(--text-muted);" id="drawer-route-tag">—</span>
+          </div>
+          <div style="font-weight:600; font-size:14px;" id="drawer-client-name">—</div>
+          <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;" id="drawer-client-sub">—</div>
+          <div id="drawer-contact-btns" class="btn-group" style="margin-top:10px;"></div>
+        </div>
+
+        <div id="drawer-fin-strip" style="display:none; flex-wrap:wrap; gap:6px;"></div>
+
+        <div id="drawer-trax-actions" style="display:none;">
+          <div class="form-label" style="margin-bottom:6px;">Trax Sonic Live Actions</div>
+          <div class="btn-group">
+            <button type="button" id="btn-trax-reattempt" class="btn btn-sm">Re-Attempt</button>
+            <button type="button" id="btn-trax-return-confirm" class="btn btn-sm btn-danger">Confirm Return</button>
+            <button type="button" id="btn-trax-crm-delay" class="btn btn-sm">Log Complaint</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="form-label" style="margin-bottom:12px;">Chronological Courier Timeline</div>
+          <div id="drawer-timeline" class="timeline-list"></div>
+        </div>
+      </div>
+
+      <div class="drawer-foot">
+        <div class="btn-group">
+          <button type="button" id="btn-drawer-refresh" class="btn btn-sm btn-primary">Refresh Live</button>
+          <a id="drawer-official-link" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-sm">Official Site ↗</a>
+        </div>
+        <div class="btn-group">
+          <button type="button" id="btn-drawer-deliver" class="btn btn-sm" style="display:none;">Delivered</button>
+          <button type="button" id="btn-drawer-return" class="btn btn-sm btn-danger" style="display:none;">Verify Return</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALS -->
+  <div id="modal-gate-camera" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Camera Scan">
+    <div class="modal-dialog">
+      <div class="modal-head">
+        <strong style="font-size:14px;">Scan Waybill Barcode / QR</strong>
+        <button type="button" id="btn-close-gate-camera" class="btn btn-sm">Close</button>
+      </div>
+      <div class="modal-body">
+        <div class="optical-frame">
+          <div class="optical-bar">
+            <span class="optical-status-pill"><span class="dot dot-green"></span><span>1080P OPTICAL</span></span>
+            <div class="btn-group" style="gap:6px;">
+              <button type="button" id="btn-gate-cam-facing" class="optical-ctrl-btn">Cam: Back</button>
+              <button type="button" id="btn-gate-scan-mode" class="optical-ctrl-btn">QR+1D</button>
+            </div>
+          </div>
+          <div id="gate-camera-reader" style="width:100%;"></div>
+        </div>
+        <div id="gate-camera-error" style="color:var(--red-text); font-size:12px; margin-top:8px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-unknown-parcel" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Unknown Parcel">
+    <div class="modal-dialog">
+      <div class="modal-head" style="background:var(--yellow-bg);">
+        <strong style="color:var(--yellow-text);">Unknown Parcel Scanned</strong>
+        <button type="button" id="btn-cancel-unknown" class="btn btn-sm">Ignore</button>
+      </div>
+      <form id="unknown-parcel-form">
+        <div class="modal-body">
+          <p style="margin-top:0; font-size:13px;">Tracking <strong id="unknown-tracking-display" class="mono"></strong> is not in your ledger. Log as an <strong>Unrecorded Return</strong>?</p>
+          <div class="form-grid">
+            <div class="form-field"><label class="form-label" for="inp-unknown-courier">Courier</label><select id="inp-unknown-courier" class="form-select"></select></div>
+            <div class="form-field"><label class="form-label" for="inp-unknown-order">Order ID (Optional)</label><input type="text" id="inp-unknown-order" class="form-input" /></div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" id="btn-dismiss-unknown" class="btn btn-sm">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-primary">Log Return</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-edit-parcel" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Edit Parcel">
+    <div class="modal-dialog">
+      <div class="modal-head">
+        <strong>Edit Shipment</strong>
+        <button type="button" id="btn-close-edit-modal" class="btn btn-sm">Close</button>
+      </div>
+      <form id="edit-parcel-form">
+        <input type="hidden" id="edit-parcel-id" />
+        <div class="modal-body">
+          <div class="form-grid form-grid-2">
+            <div class="form-field"><label class="form-label" for="edit-tracking">Tracking #</label><input type="text" id="edit-tracking" class="form-input mono" required /></div>
+            <div class="form-field"><label class="form-label" for="edit-order-id">Order ID</label><input type="text" id="edit-order-id" class="form-input" /></div>
+            <div class="form-field"><label class="form-label" for="edit-courier">Courier</label><select id="edit-courier" class="form-select"></select></div>
+            <div class="form-field"><label class="form-label" for="edit-dispatch-date">Dispatch Date</label><input type="date" id="edit-dispatch-date" class="form-input" required /></div>
+            <div class="form-field">
+              <label class="form-label" for="edit-status">Status</label>
+              <select id="edit-status" class="form-select">
+                <option value="Booked / Pickup">Booked / Pickup</option>
+                <option value="In Transit">In Transit</option>
+                <option value="Return In Transit">Return In Transit (RTO)</option>
+                <option value="Delivered">Delivered</option>
+                <option value="Returned &amp; Verified">Returned &amp; Verified</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div class="form-field"><label class="form-label" for="edit-customer-phone">Phone</label><input type="tel" id="edit-customer-phone" class="form-input" /></div>
+          </div>
+          <div class="form-grid form-grid-2" style="margin-top:10px;">
+            <div class="form-field"><label class="form-label" for="edit-customer-name">Customer Name</label><input type="text" id="edit-customer-name" class="form-input" /></div>
+            <div class="form-field"><label class="form-label" for="edit-cod-amount">COD Amount (Rs.)</label><input type="number" id="edit-cod-amount" class="form-input mono" min="0" /></div>
+          </div>
+          <div class="form-field" style="margin-top:10px;"><label class="form-label" for="edit-product">Product / Order Description</label><input type="text" id="edit-product" class="form-input" placeholder="e.g. Gul Ahmed 100% Cotton - Pure White" /></div>
+          <div class="form-field" style="margin-top:10px;"><label class="form-label" for="edit-notes">Notes</label><input type="text" id="edit-notes" class="form-input" /></div>
+        </div>
+        <div class="modal-foot" style="justify-content:space-between;">
+          <button type="button" id="btn-delete-in-modal" class="btn btn-sm btn-danger">Delete</button>
+          <div class="btn-group">
+            <button type="button" id="btn-cancel-edit" class="btn btn-sm">Cancel</button>
+            <button type="submit" class="btn btn-sm btn-primary">Save</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-admin-pin" class="modal-backdrop" role="dialog" aria-modal="true" aria-label="Admin PIN">
+    <div class="modal-dialog" style="width:min(360px, 100%);">
+      <div class="modal-head"><strong>Admin PIN Required</strong><button type="button" id="btn-cancel-admin-pin" class="btn btn-sm">Cancel</button></div>
+      <form id="admin-pin-form" autocomplete="off">
+        <div class="modal-body">
+          <p id="admin-pin-prompt-text" style="margin-top:0; font-size:12.5px; color:var(--text-secondary);">Confirm protected action with Admin PIN.</p>
+          <input type="password" inputmode="numeric" pattern="[0-9]*" id="inp-admin-verify-pin" class="form-input mono" style="height:44px; text-align:center; font-size:18px; letter-spacing:0.3em;" placeholder="••••" maxlength="8" required />
+          <div id="admin-pin-error" style="color:var(--red-text); font-size:12px; font-weight:600; min-height:16px; margin-top:6px;"></div>
+        </div>
+        <div class="modal-foot">
+          <button type="submit" class="btn btn-sm btn-primary">Verify</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/security.js"></script>
+  <script src="js/couriers.js"></script>
+  <script src="js/aging.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/cloud-sync.js"></script>
+  <script src="js/tracking-api.js"></script>
+  <script src="js/csv.js"></script>
+  <script src="js/scanner.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
